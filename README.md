@@ -2,7 +2,7 @@
 ## Purpose
 This is a program to notify you when a messages was deleted from a targeted iMessage conversation and report what the message was.  
 
-Credits for reversing the iMessage API goes to @yortos. Read his [blog post](https://medium.com/@yaskalidis/heres-how-you-can-access-your-entire-imessage-history-on-your-mac-f8878276c6e9) on how it works! Even though the code itself has since been updated, the base code and process is the same.  
+Credits for reversing the iMessage API goes to [@yortos](https://github.com/yortos/imessage-analysis). Read his [blog post](https://medium.com/@yaskalidis/heres-how-you-can-access-your-entire-imessage-history-on-your-mac-f8878276c6e9) on how it works! Even though the code itself has since been updated, the base code and process is the same.  
 * No credit goes to him for the recovery of deleted messages idea, I don't think he's scary like that  
 
 I modified the code to 
@@ -35,8 +35,10 @@ You need a Mac for this process.
 
 1. Create a .env using `sample.env`
 * Phone number must be of the format: `+12345678901`. 
-2. Install dependencies using `pip install -r requirements.txt`
-3. Run `python3.13 main.py`
+2. Enable `Privacy & Security > Full Disk Access` for the terminal you will use to run this program
+* This is because accessing the messages database requires full disk access
+3. Install dependencies using `pip install -r requirements.txt`
+4. Run `python3.13 main.py`
 
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
