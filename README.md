@@ -34,7 +34,9 @@ Starting from the end, here's the dataframe the `get_chat` function produces.
 You need a Mac for this process.
 
 1. Create a .env using `sample.env`
+* `TARGET_EMAIL_OR_PHONE_NUMBERS` is a comma separated list of phone numbers and emails
 * Phone number must be of the format: `+12345678901`. 
+* Example: `+12345678901,a@gmail.com,+911`
 2. Enable `Privacy & Security > Full Disk Access` for the terminal you will use to run this program
 * This is because accessing the messages database requires full disk access
 3. Install dependencies using `pip install -r requirements.txt`

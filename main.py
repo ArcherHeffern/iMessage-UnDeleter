@@ -23,12 +23,11 @@ def eprint(msg):
 
 
 ENV = dotenv_values()
-DEBUG = True
-TARGET_EMAIL_OR_PHONE_NUMBER = ENV["TARGET_EMAIL_OR_PHONE_NUMER"]
+TARGET_EMAIL_OR_PHONE_NUMBERS = ENV["TARGET_EMAIL_OR_PHONE_NUMERS"]
 IMESSAGE_FILE = f"{Path.home()}/Library/Messages/chat.db"
 LOGFILE = "LOGFILE"
 
-if not TARGET_EMAIL_OR_PHONE_NUMBER:
+if not TARGET_EMAIL_OR_PHONE_NUMBERS:
     eprint("Fill out your .env!")
     sys.exit(1)
 
@@ -133,16 +132,17 @@ def get_chat(
     return MessagesSchema.validate(messages[columns])
 
 
-def log_messages(messages: DataFrame[MessagesSchema]):
+def log_messages(email_or_phone_number: str, messages: DataFrame[MessagesSchema]):
     """Logs messages to LOGFILE
 
     Args:
+        email_or_phone_number (str): Email or phone number of target 
         messages (DataFrame[MessagesSchema]): Messages to be logged
     """
     with open(LOGFILE, "a", encoding="utf-8") as f:
         f.write(f"==={datetime.now()}===\n")
         for _, message in messages.iterrows():
-            f.write(f">>> {message["timestamp"]}\n")
+            f.write(f">>> {email_or_phone_number} {message["timestamp"]}\n")
             f.write(f"\tText combined: {message["text_combined"]}\n")
             f.write(f"\tText: {message["text"]}\n")
             f.write(f"\tInferred Text: {message["inferred_text"]}\n")
@@ -153,17 +153,23 @@ def log_messages(messages: DataFrame[MessagesSchema]):
 
 
 if __name__ == "__main__":
+    target_email_or_phone_numbers: list[str] = TARGET_EMAIL_OR_PHONE_NUMBERS.replace(" ", "").split(",")
     print("Watching...")
-    last_messages = get_chat(TARGET_EMAIL_OR_PHONE_NUMBER, 2, True)
+    last_messages: list[DataFrame[MessagesSchema]] = []
+    for target_email_or_phone_number in target_email_or_phone_numbers:
+        last_messages.append(get_chat(target_email_or_phone_number, 2, True))
 
     try:
         while True:
-            new_messages = get_chat(TARGET_EMAIL_OR_PHONE_NUMBER, 2, True)
-            if not last_messages.equals(new_messages):
-                log_messages(last_messages)
-                print("Difference noticed...")
+            new_messages_list = []
+            for i, target_email_or_phone_number in enumerate(target_email_or_phone_numbers):
+                new_messages = get_chat(target_email_or_phone_number, 2, True)
+                new_messages_list.append(new_messages)
+                if not last_messages[i].equals(new_messages):
+                    log_messages(target_email_or_phone_number, last_messages[i])
+                    print("Difference noticed...")
             else:
                 sleep(0.5)
-            last_messages = new_messages
+            last_messages = new_messages_list
     except KeyboardInterrupt:
         print("Exiting...")
