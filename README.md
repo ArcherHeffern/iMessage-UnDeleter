@@ -38,9 +38,6 @@ You need a Mac for this process.
 3. Run `python3.13 main.py`
 
 
-You can also read about some fun analysis you can do once you have the clean dataframe [here](https://medium.com/@yaskalidis/fun-things-you-can-learn-about-yourself-and-from-your-messages-5101631a8e20)
-
-
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 ## License
 
