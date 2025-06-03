@@ -19,15 +19,15 @@ Starting from the end, here's the dataframe the `get_chat` function produces.
 | Column Name               | Type         | Description                                            |
 |---------------------------|--------------|--------------------------------------------------------|
 | `message_id`              | integer  |   Unique ID for this message       |
-| `is_from_me`              | bool  | Take values of 0 or 1. Indicates whether the message was sent from you (1) or not (0).       |
+| `is_from_me`              | bool  | |
 | `text_combined`           | Optional[string]  | The most complete data I could find for the text of the message. If `text` (see below) is NULL then this takes the value of `inferred_text`, otherwise `text`. This is because `text` is the field from Apple but it can be NULL often, in which case I resort to hacky methods to infer the text. |
 | `text`                    | Optional[string]  | The text of the message, native from Apple.            |
 | `inferred_text`           | Optional[string]  | If the `text` value above is NULL, I try and infer the text from the field called `attributedBody` which can be found in the messages database. This process is not perfect, and currently works only for English.    |
 | `timestamp`               | pd.Timestamp  | The timestamp when the message was sent. When storing the dataframe in CSV and loading again the type resets to string. Convert to timestamp with `pd.Timestamp(x)`. Example value: '2024-04-26 14:35:03'|
-| `is_audio_message`        | bool  | 1 indicates that the message is an audio message, 0 not. |
+| `is_audio_message`        | bool  | |
 | `message_effect`          | string  | The effect that the message was sent with, or `no-effect` if there is none. Possible values: `impact`, `gentle`, `Echo`, `HappyBirthday`, `loud`, `Fireworks`, `Lasers`, `invisibleink`, `Confetti`, `Heart`, `Spotlight`, `Sparkles`, `ShootingStar` |
 | `reaction`                | string  |  The type of reaction that this message is, or `no-reaction` if it is not a reaction. Possible values: `Disliked`, `Emphasized`, `Laughed`, `Liked`, `Loved`, `Questioned`, `Removed dislike`, `Removed emphasis`, `Removed heart`, `Removed laugh`, `Removed like`, `Removed question mark`       |
-| `is_thread_reply`         | bool  | Indicates whether this message was a reply to a specific message (i.e,, a thread) or not. 1 if it is a thread reply, 0 if it is not.  |
+| `is_thread_reply`         | bool  | Indicates whether this message was a reply to a specific message (i.e,, a thread) or not. |
 
 
 ## Getting Started
