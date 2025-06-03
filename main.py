@@ -1,5 +1,7 @@
 from sqlite3 import connect
+from datetime import datetime
 from sys import exit
+from time import sleep
 from typing import Optional
 import pandas as pd
 import sys
@@ -17,6 +19,7 @@ ENV = dotenv_values()
 DEBUG = True
 TARGET_EMAIL_OR_PHONE_NUMBER = ENV["TARGET_EMAIL_OR_PHONE_NUMER"]
 IMESSAGE_FILE = f'{Path.home()}/Library/Messages/chat.db'
+LOGFILE = "LOGFILE"
 
 if not TARGET_EMAIL_OR_PHONE_NUMBER:
     eprint("Fill out your .env!")
@@ -34,7 +37,7 @@ class MessagesSchema(DataFrameModel):
     reaction: str
     is_thread_reply: bool
 
-def get_chat(iMessage_file, target_email_or_phone_number: str, last_n: Optional[int] = None) -> DataFrame[MessagesSchema]:
+def get_chat(iMessage_file, target_email_or_phone_number: str, last_n: Optional[int] = None, filter_your_messages: bool = False) -> DataFrame[MessagesSchema]:
     conn = connect(iMessage_file)
 
     with conn as cur:
@@ -47,7 +50,10 @@ def get_chat(iMessage_file, target_email_or_phone_number: str, last_n: Optional[
     limit = ""
     if last_n:
         limit = f"LIMIT {last_n}"
-    messages = pd.read_sql_query(f'''select *, datetime(date/1000000000 + strftime("%s", "2001-01-01") ,"unixepoch","localtime")  as date_utc from message WHERE handle_id=? ORDER BY date DESC {limit}''', conn, params=(handle_id,)) 
+    filter_your_messages_query = ""
+    if filter_your_messages:
+        filter_your_messages_query = "AND is_from_me=0"
+    messages = pd.read_sql_query(f'''select *, datetime(date/1000000000 + strftime("%s", "2001-01-01") ,"unixepoch","localtime")  as date_utc from message WHERE handle_id=? {filter_your_messages_query} ORDER BY date DESC {limit}''', conn, params=(handle_id,)) 
     messages.rename(columns={'ROWID':'message_id'}, inplace=True)
 
     # table mapping each chat_id to the handles that are part of that chat.
@@ -76,5 +82,30 @@ def get_chat(iMessage_file, target_email_or_phone_number: str, last_n: Optional[
     messages['is_thread_reply'] = messages['is_thread_reply'].apply(lambda x: bool(x))
     return MessagesSchema.validate(messages[columns])
 
-df_messages = get_chat(IMESSAGE_FILE, TARGET_EMAIL_OR_PHONE_NUMBER, 10)
-print(df_messages["inferred_text"])
+def log_messages(messages: DataFrame[MessagesSchema]): 
+    with open(LOGFILE, "a") as f:
+        f.write(f"==={datetime.now()}===\n")
+        for (i, message) in messages.iterrows():
+            f.write(f">>> {message["timestamp"]}\n")
+            f.write(f"\tText combined: {message["text_combined"]}\n")
+            f.write(f"\tText: {message["text"]}\n")
+            f.write(f"\tInferred Text: {message["inferred_text"]}\n")
+            f.write(f"\tIs Audio Message: {message["is_audio_message"]}\n")
+            f.write(f"\tMessage Effect: {message["message_effect"]}\n")
+            f.write(f"\tReaction: {message["reaction"]}\n")
+            f.write(f"\tIs Thread Reply: {message["is_thread_reply"]}\n")
+
+print("Watching...")
+last_messages = get_chat(IMESSAGE_FILE, TARGET_EMAIL_OR_PHONE_NUMBER, 2, True)
+
+try:
+    while True:
+        new_messages = get_chat(IMESSAGE_FILE, TARGET_EMAIL_OR_PHONE_NUMBER, 2, True)
+        if not last_messages.equals(new_messages):
+            log_messages(last_messages)
+            print("Difference noticed...")
+        else:
+            sleep(0.5)
+        last_messages = new_messages
+except KeyboardInterrupt:
+    print("Exiting...")
