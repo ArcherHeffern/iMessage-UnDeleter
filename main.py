@@ -1,5 +1,6 @@
 from sqlite3 import connect
 from sys import exit
+from typing import Optional
 import pandas as pd
 import sys
 import helper as hp
@@ -7,6 +8,7 @@ from pandera.typing import Series, DataFrame
 from pandera.pandas import DataFrameModel
 from pandera.pandas import Field
 from dotenv import dotenv_values
+from pathlib import Path
 
 def eprint(msg):
     print(msg, file=sys.stderr)
@@ -14,9 +16,9 @@ def eprint(msg):
 ENV = dotenv_values()
 DEBUG = True
 TARGET_EMAIL_OR_PHONE_NUMBER = ENV["TARGET_EMAIL_OR_PHONE_NUMER"]
-HOME_DIRECTORY_USERNAME = ENV["HOME_DIRECTORY_USERNAME"]
+IMESSAGE_FILE = f'{Path.home()}/Library/Messages/chat.db'
 
-if not TARGET_EMAIL_OR_PHONE_NUMBER or not HOME_DIRECTORY_USERNAME:
+if not TARGET_EMAIL_OR_PHONE_NUMBER:
     eprint("Fill out your .env!")
     exit(1)
 
@@ -32,8 +34,8 @@ class MessagesSchema(DataFrameModel):
     reaction: str
     is_thread_reply: bool
 
-def get_chat(home_directory_username: str, target_email_or_phone_number: str) -> DataFrame[MessagesSchema]:
-    conn = connect(f'/Users/{home_directory_username}/Library/Messages/chat.db')
+def get_chat(iMessage_file, target_email_or_phone_number: str, last_n: Optional[int] = None) -> DataFrame[MessagesSchema]:
+    conn = connect(iMessage_file)
 
     with conn as cur:
         handle = cur.execute("select * from handle WHERE id=? AND service=='iMessage'", (target_email_or_phone_number,)).fetchone()
@@ -42,7 +44,10 @@ def get_chat(home_directory_username: str, target_email_or_phone_number: str) ->
             exit(1)
         handle_id = handle[0]
 
-    messages = pd.read_sql_query('''select *, datetime(date/1000000000 + strftime("%s", "2001-01-01") ,"unixepoch","localtime")  as date_utc from message WHERE handle_id=? ORDER BY date DESC''', conn, params=(handle_id,)) 
+    limit = ""
+    if last_n:
+        limit = f"LIMIT {last_n}"
+    messages = pd.read_sql_query(f'''select *, datetime(date/1000000000 + strftime("%s", "2001-01-01") ,"unixepoch","localtime")  as date_utc from message WHERE handle_id=? ORDER BY date DESC {limit}''', conn, params=(handle_id,)) 
     messages.rename(columns={'ROWID':'message_id'}, inplace=True)
 
     # table mapping each chat_id to the handles that are part of that chat.
@@ -71,6 +76,5 @@ def get_chat(home_directory_username: str, target_email_or_phone_number: str) ->
     messages['is_thread_reply'] = messages['is_thread_reply'].apply(lambda x: bool(x))
     return MessagesSchema.validate(messages[columns])
 
-df_messages = get_chat(HOME_DIRECTORY_USERNAME, TARGET_EMAIL_OR_PHONE_NUMBER)
-# with pd.option_context('display.max_columns', None):
-#     print(df_messages.head())
+df_messages = get_chat(IMESSAGE_FILE, TARGET_EMAIL_OR_PHONE_NUMBER, 10)
+print(df_messages["inferred_text"])

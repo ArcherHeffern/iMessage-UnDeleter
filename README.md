@@ -34,6 +34,7 @@ Starting from the end, here's the dataframe the `get_chat` function produces.
 You need a Mac for this process.
 
 1. Create a .env using `sample.env`
+* Phone number must be of the format: `+12345678901`. 
 2. Install dependencies using `pip install -r requirements.txt`
 3. Run `python3.13 main.py`
 
