@@ -132,7 +132,7 @@ def get_chat(
     return MessagesSchema.validate(messages[columns])
 
 
-def log_messages(email_or_phone_number: str, messages: DataFrame[MessagesSchema]):
+def log_messages_to_logfile(email_or_phone_number: str, messages: DataFrame[MessagesSchema]):
     """Logs messages to LOGFILE
 
     Args:
@@ -141,35 +141,87 @@ def log_messages(email_or_phone_number: str, messages: DataFrame[MessagesSchema]
     """
     with open(LOGFILE, "a", encoding="utf-8") as f:
         f.write(f"==={datetime.now()}===\n")
-        for _, message in messages.iterrows():
-            f.write(f">>> {email_or_phone_number} {message["timestamp"]}\n")
-            f.write(f"\tText combined: {message["text_combined"]}\n")
-            f.write(f"\tText: {message["text"]}\n")
-            f.write(f"\tInferred Text: {message["inferred_text"]}\n")
-            f.write(f"\tIs Audio Message: {message["is_audio_message"]}\n")
-            f.write(f"\tMessage Effect: {message["message_effect"]}\n")
-            f.write(f"\tReaction: {message["reaction"]}\n")
-            f.write(f"\tIs Thread Reply: {message["is_thread_reply"]}\n")
+    for _, message in messages.iterrows():
+        log_message_to_logfile(email_or_phone_number, message)
+
+def log_message_to_logfile(email_or_phone_number: str, message: pd.Series):
+    """Logs message to LOGFILE
+
+    Args:
+        email_or_phone_number (str): Email or phone number of target 
+        message (Series[MessagesSchema]): Message to be logged
+    """
+    with open(LOGFILE, "a", encoding="utf-8") as f:
+        f.write(f"==={datetime.now()}===\n")
+        f.write(f">>> {email_or_phone_number} {message["timestamp"]}\n")
+        f.write(f"\tText combined: {message["text_combined"]}\n")
+        f.write(f"\tText: {message["text"]}\n")
+        f.write(f"\tInferred Text: {message["inferred_text"]}\n")
+        f.write(f"\tIs Audio Message: {message["is_audio_message"]}\n")
+        f.write(f"\tMessage Effect: {message["message_effect"]}\n")
+        f.write(f"\tReaction: {message["reaction"]}\n")
+        f.write(f"\tIs Thread Reply: {message["is_thread_reply"]}\n")
 
 
+def log_new_messages_loop(target_email_or_phone_numbers: list[str], N: int = 2):
+    """Watches target emails and phone numbers and logs when anything within the last N messages happened
+
+    Args:
+        target_email_or_phone_numbers (list[str]): List of phone numbers and emails to track
+        N (int): How many messages back to track
+        * Defaults to 2
+    """    
+    last_messages: list[DataFrame[MessagesSchema]] = []
+    for target_email_or_phone_number in target_email_or_phone_numbers:
+        last_messages.append(get_chat(target_email_or_phone_number, N, True))
+    while True:
+        new_messages_list = []
+        for i, target_email_or_phone_number in enumerate(target_email_or_phone_numbers):
+            new_messages = get_chat(target_email_or_phone_number, N, True)
+            new_messages_list.append(new_messages)
+            if not last_messages[i].equals(new_messages):
+                log_messages_to_logfile(target_email_or_phone_number, last_messages[i])
+                print("Difference noticed...")
+        sleep(0.5)
+        last_messages = new_messages_list
+
+def log_deleted_messages_loop(target_email_or_phone_numbers: list[str], N: int = 2):
+    """Watches target emails and phone numbers and logs when a message has been deleted within the last N messages
+
+    Args:
+        target_email_or_phone_numbers (list[str]): List of phone numbers and emails to track
+        N (int): How many messages back to track
+        * Defaults to 2
+    """    
+    old_messages_list: list[DataFrame[MessagesSchema]] = []
+    for target_email_or_phone_number in target_email_or_phone_numbers:
+        old_messages_list.append(get_chat(target_email_or_phone_number, N, True))
+    
+    while True:
+        new_messages_list: list[DataFrame[MessagesSchema]] = []
+        for i, target_email_or_phone_number in enumerate(target_email_or_phone_numbers):
+            new_messages = get_chat(target_email_or_phone_number, N, True)
+            new_messages_list.append(new_messages)
+            for _, old_message in old_messages_list[i].iterrows():
+                # Get new message with same message_id
+                new_message = new_messages.loc[new_messages["message_id"] == old_message["message_id"]]
+                if new_message.empty:
+                    continue
+                new_message = new_message.iloc[0]
+                # If messages with the same message_id contents go to None, log the previous contents
+                if (old_message["text"] != None and new_message["text"] == None) \
+                or (old_message["inferred_text"] != None and new_message["inferred_text"] == None) \
+                or (old_message["text_combined"] != None and new_message["text_combined"] == None):
+                    log_message_to_logfile(target_email_or_phone_number, old_message)
+                    print("Difference noticed...")
+        sleep(0.5)
+        old_messages_list = new_messages_list
+    
 if __name__ == "__main__":
     target_email_or_phone_numbers: list[str] = TARGET_EMAIL_OR_PHONE_NUMBERS.replace(" ", "").split(",")
     print("Watching...")
-    last_messages: list[DataFrame[MessagesSchema]] = []
-    for target_email_or_phone_number in target_email_or_phone_numbers:
-        last_messages.append(get_chat(target_email_or_phone_number, 2, True))
-
     try:
-        while True:
-            new_messages_list = []
-            for i, target_email_or_phone_number in enumerate(target_email_or_phone_numbers):
-                new_messages = get_chat(target_email_or_phone_number, 2, True)
-                new_messages_list.append(new_messages)
-                if not last_messages[i].equals(new_messages):
-                    log_messages(target_email_or_phone_number, last_messages[i])
-                    print("Difference noticed...")
-            else:
-                sleep(0.5)
-            last_messages = new_messages_list
+        # log_new_messages_loop(target_email_or_phone_numbers)
+        log_deleted_messages_loop(target_email_or_phone_numbers)
     except KeyboardInterrupt:
         print("Exiting...")
